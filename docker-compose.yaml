@@ -251,9 +251,9 @@ services:
     image: oasst-inference-worker:dev
     environment:
       API_KEY: "0000"
-      MODEL_CONFIG_NAME: ${MODEL_CONFIG_NAME:-distilgpt2}
+      MODEL_CONFIG_NAME: ${MODEL_CONFIG_NAME:-OA_SFT_Pythia_12B_4}
       BACKEND_URL: "ws://inference-server:8000"
-      PARALLELISM: 2
+      PARALLELISM: 4
     volumes:
       - "./oasst-shared:/opt/inference/lib/oasst-shared"
       - "./inference/worker:/opt/inference/worker"

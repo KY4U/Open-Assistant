@@ -180,7 +180,7 @@ def wait_for_inference_server(http: "HttpClient", timeout: int = 600):
             logger.warning(f"Inference server not ready. Retrying in {sleep_duration:.2f} seconds")
             time.sleep(sleep_duration)
         else:
-            logger.info("Inference server is ready")
+            logger.info(f"Inference server is ready at {http}")
             break
 
 

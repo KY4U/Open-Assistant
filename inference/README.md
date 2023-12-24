@@ -22,6 +22,12 @@ To build the services, run:
 docker compose --profile inference build
 ```
 
+To build the services without cache, run:
+
+```shell
+docker compose --profile inference build --no-cache
+```
+
 Spin up the stack:
 
 ```shell

@@ -248,7 +248,7 @@ class MessageRead(pydantic.BaseModel):
     chat_id: str
     created_at: datetime
     role: Literal["prompter", "assistant"]
-    state: MessageState
+    state: str
     score: int
     reports: list[Report] = []
     # work parameters will be None on user prompts

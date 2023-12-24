@@ -48,13 +48,15 @@ async def add_worker_connect_event(
     worker_id: str,
     worker_info: inference.WorkerInfo,
 ):
+    logger.info("About to create worker connect event")
     event = models.DbWorkerEvent(
-        worker_id=worker_id,
-        event_type=models.WorkerEventType.connect,
-        worker_info=worker_info,
+        worker_id = worker_id,
+        event_type = models.WorkerEventType.connect,
+        worker_info = worker_info,
     )
     session.add(event)
     await session.commit()
+    logger.info("Connect event created")
 
 
 class WorkRequestContainer(pydantic.BaseModel):
@@ -124,8 +126,12 @@ async def handle_worker(
     work_request_map: dict[str, WorkRequestContainer] = {}
     pending_futures = set()
     try:
+        logger.info("Manual session creation")
         async with deps.manual_create_session() as session:
+            worker_event_type = models.WorkerEventType.connect
+            logger.info(f"{worker_event_type}")
             await add_worker_connect_event(session=session, worker_id=worker_id, worker_info=worker_info)
+        logger.info("store_worker_session")
         await worker_utils.store_worker_session(worker_session)
 
         async def _update_session(metrics: inference.WorkerMetricsInfo):

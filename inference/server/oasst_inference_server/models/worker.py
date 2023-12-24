@@ -33,12 +33,14 @@ class DbWorkerComplianceCheck(SQLModel, table=True):
 class DbWorkerEvent(SQLModel, table=True):
     __tablename__ = "worker_event"
 
+    logger.info("DbWorkerEvent started")
     id: str = Field(default_factory=uuid7str, primary_key=True)
     worker_id: str = Field(foreign_key="worker.id", index=True)
     worker: "DbWorker" = Relationship(back_populates="events")
     time: datetime.datetime = Field(default_factory=datetime.datetime.utcnow)
-    event_type: WorkerEventType
+    event_type: str
     worker_info: inference.WorkerInfo | None = Field(None, sa_column=sa.Column(pg.JSONB))
+    logger.info("DbWorkerEvent complete")
 
 
 class DbWorker(SQLModel, table=True):
