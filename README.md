@@ -123,9 +123,11 @@ If you _do_ know what you are doing, then see the `inference` folder for getting
 the inference system up and running, or have a look at `--profile inference` in
 addition to `--profile ci` in the above command.
 
+
 ```sh
 docker compose --profile ci --profile inference up --build --attach-dependencies
 ```
+
 
 ## The Vision
 

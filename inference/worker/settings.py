@@ -13,6 +13,7 @@ class Settings(pydantic.BaseSettings):
 
     # Supported: oasst, chatml
     model_prompt_format: str = "oasst"
+    #model_prompt_format: str = "chatml"
 
     retry_on_error: bool = True
     hf_pause: float = 0.075
