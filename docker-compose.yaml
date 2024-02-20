@@ -253,7 +253,9 @@ services:
       API_KEY: "0000"
       MODEL_CONFIG_NAME: ${MODEL_CONFIG_NAME:-OA_SFT_Pythia_12B_4}
       BACKEND_URL: "ws://inference-server:8000"
-      PARALLELISM: 4
+      PARALLELISM: 2
+      GPU_COUNT: 2 # Change this value based on the number of GPUs available
+      GPU_LIMIT: 16 # Limit the number of GPUs allocated to the instance      
     volumes:
       - "./oasst-shared:/opt/inference/lib/oasst-shared"
       - "./inference/worker:/opt/inference/worker"

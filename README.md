@@ -125,9 +125,26 @@ addition to `--profile ci` in the above command.
 
 
 ```sh
-docker compose --profile ci --profile inference up --build --attach-dependencies
+docker compose --profile ci --profile inference --profile frontend-dev up --build --attach-dependencies
 ```
 
+Use the --no-build flag with docker-compose to skip the build process and directly start the containers.
+
+```sh
+docker-compose --profile ci --profile inference --profile frontend-dev up --no-build --attach-dependencies
+```
+
+Alternatively, if you want to use docker run instead of docker-compose, you can use the following command to start the container without building the image:
+
+```sh
+docker run -d --name <container_name> --profile ci --profile inference --profile frontend-dev <image_name>
+```
+
+Replace <container_name> with the name you want to give the container, and <image_name> with the name of the image you want to use. The -d flag tells Docker to run the container in detached mode (-d for "detach"), which means it'll run in the background and you won't see its output.
+
+Enable GPU with NVidia Drivers:
+https://docs.docker.com/config/containers/resource_constraints/#gpu
+https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html
 
 ## The Vision
 

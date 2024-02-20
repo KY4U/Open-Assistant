@@ -1,8 +1,106 @@
+#https://github.com/yk/text-generation-inference/pkgs/container/text-generation-inference
 FROM ghcr.io/yk/text-generation-inference:latest
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
-    && rm -rf /var/lib/apt/lists/*
+# https://blog.roboflow.com/use-the-gpu-in-docker/
+# https://www.howtogeek.com/devops/how-to-use-an-nvidia-gpu-with-docker-containers/
+# FROM nvidia/cuda:12.3.0-base-ubuntu20.04
+
+# To get a list of nvidia drivers:
+# apt-cache search nvidia-driver
+# To find the path of a package, and get general information:
+# pip show <packagename>
+#
+# Another option:
+# conda info <packagename>
+#
+
+# Verify NVIDIA Container Toolkit Configuration: Confirm that the NVIDIA Container Toolkit is configured correctly. 
+# You can check the NVIDIA runtime by running the following command on your host machine:
+#   docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+# This should display information about the available GPUs. If it works on your host, it indicates that the NVIDIA runtime is configured properly.
+
+#https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+# Install nvidia-container-toolkit
+# RUN apt-get update && apt-get install -y --no-install-recommends \
+#    git \
+#    && apt-get install -y nvidia-container-toolkit \
+#    && apt-get install -y cuda \    
+#    && rm -rf /var/lib/apt/lists/*
+
+# Copy NVIDIA driver installation package to the container
+# COPY /docker/inference/nvidia-driver-local-repo-ubuntu2004-460.32.03_1.0-1_amd64.deb /
+
+# https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=WSL-Ubuntu&target_version=2.0&target_type=deb_network
+
+# Install necessary dependencies and the NVIDIA driver
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git 
+    #gnupg2 \
+    #software-properties-common && \
+    # dpkg -i /nvidia-driver-local-repo-ubuntu2004-460.32.03_1.0-1_amd64.deb && \
+    # apt-key add /var/nvidia-driver-local-repo-ubuntu2004-460.32.03/7fa2af80.pub && \
+    #apt-get install -y cuda  && \
+    #apt-get install -y --no-install-recommends
+
+# Install NVIDIA Container Toolkit
+RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID) && \
+    curl -s -L https://nvidia.github.io/nvidia-container-runtime/gpgkey | apt-key add - && \
+    curl -s -L https://nvidia.github.io/nvidia-container-runtime/$distribution/nvidia-container-runtime.list | \
+    tee /etc/apt/sources.list.d/nvidia-container-runtime.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends nvidia-container-runtime
+
+# Install CUDA drivers and NVIDIA Drivers
+RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID | sed -e 's/\.//g') && \
+    curl -O https://developer.download.nvidia.com/compute/cuda/repos/$distribution/x86_64/cuda-keyring_1.0-1_all.deb && \
+    dpkg -i cuda-keyring_1.0-1_all.deb && \
+    apt-get update && \
+    apt-get install -y cuda  && \
+    apt-get -y install cuda-drivers && \
+    apt-get install -y --no-install-recommends
+
+# Install NVidia Container Runtime
+RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID) && \
+    curl -s -L https://nvidia.github.io/nvidia-container-runtime/gpgkey | apt-key add - && \
+    curl -s -L https://nvidia.github.io/nvidia-container-runtime/$distribution/nvidia-container-runtime.list | \
+    tee /etc/apt/sources.list.d/nvidia-container-runtime.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends cuda-tools-12.3
+    
+
+# Run from container shell:  
+# nvidia-container-toolkit --version
+# cuda --version
+
+# Clean up
+RUN apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set the default runtime for Docker
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+# https://docs.docker.com/config/containers/resource_constraints/#gpus
+ENV PATH=/usr/bin/nvidia-container-runtime-hook:/usr/local/python/3.10.13/lib/python3.10/site-packages:$PATH
+# https://github.com/TimDettmers/bitsandbytes/issues/112#issuecomment-1556345068
+ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+
+# This will add the export CUDA_VISIBLE_DEVICES=0 command to the /etc/environment file so that it gets executed during startup. 
+# This should allow the Inference-Worker container to access the GPUs and enable GPU support.
+# ENV CUDA_VISIBLE_DEVICES=0,1   
+ENV TENSORRT_DIR /usr/lib/x86_64-linux-gnu/
+# Set environment variable to address:
+# An error occurred while downloading using `hf_transfer`. Consider disabling HF_HUB_ENABLE_HF_TRANSFER for better error handling.
+ENV HF_HUB_ENABLE_HF_TRANSFER false
+# The reason for the AttributeError exception is that the CUDA library included in the bitsandbytes package is not compatible with the version of CUDA 
+# that you have installed on your system. This could happen if you have an older version of CUDA installed, 
+# or if you have a different version of CUDA installed that is not supported by bitsandbytes.
+# To resolve this issue, you can try upgrading your version of CUDA to a version that is supported by bitsandbytes, 
+# or you can try installing a different version of bitsandbytes that is compatible with your existing version of CUDA. 
+# Additionally, you can try setting the COMPILED_WITH_CUDA environment variable to True before importing the bitsandbytes module, 
+# which may help the code detect the presence of a compatible CUDA library.
+ENV COMPILED_WITH_CUDA TRUE
 
 ARG MODULE="inference"
 ARG SERVICE="worker"
@@ -11,7 +109,7 @@ ARG APP_RELATIVE_PATH="${MODULE}/${SERVICE}"
 
 WORKDIR /worker
 
-RUN conda create -n worker python=3.10 -y
+RUN conda create -n worker python=3.11 -y
 
 COPY ./oasst-shared /tmp/oasst-shared
 RUN /opt/miniconda/envs/worker/bin/pip install /tmp/oasst-shared

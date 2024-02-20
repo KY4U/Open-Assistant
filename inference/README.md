@@ -28,6 +28,12 @@ To build the services without cache, run:
 docker compose --profile inference build --no-cache
 ```
 
+Build and Spin up the stack:
+
+```shell
+docker compose --profile inference up --build -d
+```
+
 Spin up the stack:
 
 ```shell
