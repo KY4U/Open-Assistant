@@ -25,6 +25,13 @@ if settings.model_prompt_format == "chatml":
         "system": "<|im_start|>system\n",
         "end": "<|im_end|>\n",
     }
+elif settings.model_prompt_format == "chatHF":
+    special_tokens = {
+        "prompter": "<|user|>",
+        "assistant": "<|assistant|>",
+        "system": "<|system|>",
+        "end": "",
+    }
 else:
     special_tokens = {
         "prompter": "<|prompter|>",

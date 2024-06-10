@@ -12,8 +12,9 @@ class Settings(pydantic.BaseSettings):
     oa_protocol_version: str = "v2"
 
     # Supported: oasst, chatml
-    model_prompt_format: str = "oasst"
-    #model_prompt_format: str = "chatml"
+    # model_prompt_format: str = "oasst"
+    # model_prompt_format: str = "chatml"
+    model_prompt_format: str = "chatHF"
 
     retry_on_error: bool = True
     hf_pause: float = 0.075
@@ -32,6 +33,5 @@ class Settings(pydantic.BaseSettings):
     basic_auth_password: str | None = None
 
     enable_safety: bool = False
-
 
 settings = Settings()

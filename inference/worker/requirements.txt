@@ -12,3 +12,7 @@ sentencepiece
 sseclient-py
 git+https://github.com/huggingface/transformers@main#egg=transformers
 websocket-client
+torch
+torchvision
+torchaudio
+pynvml

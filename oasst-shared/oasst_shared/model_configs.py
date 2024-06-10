@@ -6,6 +6,7 @@ class ModelConfig(pydantic.BaseModel):
     max_input_length: int = 512
     max_total_length: int = 1024
     quantized: bool = False
+    # quantize_args: str = "Awq"  # possible values: awq, eetq, gptq, bitsandbytes, bitsandbytes-nf4, bitsandbytes-fp4
     trust_remote_code: bool = False
 
     @property
@@ -252,11 +253,33 @@ MODEL_CONFIGS = {
         trust_remote_code=True,
         # This is the 4th iteration English supervised-fine-tuning (SFT) model of the Open-Assistant project.
     ),
-    "llama2_7b_megacode2_frac05": ModelConfig(
-        model_id="andreaskoepf/llama2-7b-megacode2_frac05",
-        max_input_length=8192,
-        max_total_length=12288,
+    "OA_SFT_Pythia_12Bq": ModelConfig(
+        model_id="OpenAssistant/oasst-sft-1-pythia-12b",
+        max_input_length=1024,
+        max_total_length=2048,
+        quantized=True,
+    ),   
+    "Zephyr_7b_beta": ModelConfig(
+        model_id="HuggingFaceH4/zephyr-7b-beta",
+        max_input_length=4096,
+        max_total_length=8192,
         trust_remote_code=True,
-        # Requires model_prompt_format: str = "chatml" in inference/worker/settings.py
+        # Requires model_prompt_format: str = "chatHF" in inference/worker/settings.py
+        # CUDA Out of memory error.
+    ),
+    "Starchat2_15b_v01": ModelConfig(
+        model_id="HuggingFaceH4/starchat2-15b-v0.1",
+        max_input_length=1024,
+        max_total_length=2048,
+        trust_remote_code=True,
+       # Requires model_prompt_format: str = "chatHF" in inference/worker/settings.py
+        # Fails if CUDA_VISIBLE_DEVICES is set
+    ),
+    "latest_model_test": ModelConfig(
+        model_id="FacebookAI/roberta-base",
+        max_input_length=514,
+        max_total_length=514,
+        trust_remote_code=True,
+        # Doesn't fail but I don't know the model prompt format
     ),
 }

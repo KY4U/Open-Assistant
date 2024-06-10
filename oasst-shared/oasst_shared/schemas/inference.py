@@ -9,6 +9,7 @@ import psutil
 import pydantic
 import pynvml
 from oasst_shared.model_configs import ModelConfig
+from loguru import logger
 
 INFERENCE_PROTOCOL_VERSION = "1"
 
@@ -50,19 +51,65 @@ class WorkerHardwareInfo(pydantic.BaseModel):
             # https://github.com/giampaolo/psutil/issues/1892
             data["cpu_freq_max"] = 0
             data["cpu_freq_min"] = 0
+        
         data["mem_total"] = psutil.virtual_memory().total
         data["swap_total"] = psutil.swap_memory().total
         data["gpus"] = []
+        # try:
+        #     pynvml.nvmlInit()
+        #     data["nvidia_driver_version"] = pynvml.nvmlSystemGetDriverVersion()
+        #     logger.warning({pynvml.nvmlSystemGetDriverVersion()})
+        #     logger.warning({pynvml.nvmlDeviceGetCount()})
+        #     for i in range(pynvml.nvmlDeviceGetCount()):
+        #         handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+        #         name = pynvml.nvmlDeviceGetName(handle)
+        #         total_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
+        #         logger.warning(f"GPU Name: {name}. Memory: {total_memory}")
+        #         data["gpus"].append(WorkerGpuInfo(name=name, total_memory=total_memory))
+        # except Exception as e:
+        #     logger.error(f"[ERROR]: Unexpected error: {str(e)}")
+        #     pass
+
         try:
+            nvml_available = False
             pynvml.nvmlInit()
-            data["nvidia_driver_version"] = pynvml.nvmlSystemGetDriverVersion()
-            for i in range(pynvml.nvmlDeviceGetCount()):
-                handle = pynvml.nvmlDeviceGetHandleByIndex(i)
-                name = pynvml.nvmlDeviceGetName(handle)
-                total_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
-                data["gpus"].append(WorkerGpuInfo(name=name, total_memory=total_memory))
-        except Exception:
-            pass
+            nvml_available = True
+        except ModuleNotFoundError:
+            logger.warning("[WARNING]: Unable to load pynvml module.")
+            nvml_available = False
+        except pynvml.NVMLError as e:
+            logger.error(f"[ERROR]: NVML error occurred: {str(e)}")
+            nvml_available = False
+        except Exception as e:
+            logger.error(f"[ERROR]: Unexpected error: {str(e)}")
+            nvml_available = False
+        else:
+            if nvml_available:
+                try:
+                    data["nvidia_driver_version"] = pynvml.nvmlSystemGetDriverVersion()
+                    logger.warning({pynvml.nvmlSystemGetDriverVersion()})
+                    logger.warning({pynvml.nvmlDeviceGetCount()})
+                    for i in range(pynvml.nvmlDeviceGetCount()):
+                        handle = pynvml.nvmlDeviceGetHandleByIndex(i)
+                        # name = pynvml.nvmlDeviceGetName(handle).decode("utf-8")
+                        # total_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
+                        name = pynvml.nvmlDeviceGetName(handle)
+                        total_memory = pynvml.nvmlDeviceGetMemoryInfo(handle).total
+                        logger.warning(f"GPU Name: {name}. Memory: {total_memory}")
+                        data["gpus"].append(WorkerGpuInfo(name=name, total_memory=total_memory))
+                except pynvml.NVMLError as e:
+                    logger.error(f"[ERROR]: NVML error during GPU data retrieval: {str(e)}")
+                except Exception as e:
+                    logger.error(f"[ERROR]: Unexpected error during GPU data retrieval: {str(e)}")
+        finally:
+            if nvml_available:
+                try:
+                    pynvml.nvmlShutdown()
+                except pynvml.NVMLError as e:
+                    logger.error(f"[ERROR]: NVML error during shutdown: {str(e)}")
+                except Exception as e:
+                    logger.error(f"[ERROR]: Unexpected error during NVML shutdown: {str(e)}")
+
         super().__init__(**data)
 
 
