@@ -256,6 +256,7 @@ services:
       PARALLELISM: 2
       GPU_COUNT: 1 # Change this value based on the number of GPUs available
       GPU_LIMIT: 16 # Limit the number of GPUs allocated to the instance
+      # CUDA_VISIBLE_DEVICES: 2 # Useful if more than on GPU
       NVIDIA_VISIBLE_DEVICES: "all" # To ensure all GPUs are visible
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility" # Required for GPU usage
     volumes:

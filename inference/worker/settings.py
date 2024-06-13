@@ -15,6 +15,7 @@ class Settings(pydantic.BaseSettings):
     # model_prompt_format: str = "oasst"
     # model_prompt_format: str = "chatml"
     model_prompt_format: str = "chatHF"
+    # model_prompt_format: str = "chatLlama"
 
     retry_on_error: bool = True
     hf_pause: float = 0.075
@@ -32,6 +33,6 @@ class Settings(pydantic.BaseSettings):
     basic_auth_username: str | None = None
     basic_auth_password: str | None = None
 
-    enable_safety: bool = False
+    enable_safety: bool = True
 
 settings = Settings()

@@ -20,16 +20,27 @@ shared_tokenizer_lock = threading.Lock()
 
 if settings.model_prompt_format == "chatml":
     special_tokens = {
-        "prompter": "<|im_start|>user\n",
-        "assistant": "<|im_start|>assistant\n",
-        "system": "<|im_start|>system\n",
-        "end": "<|im_end|>\n",
+        # "prompter": "<|im_start|>user\n",
+        # "assistant": "<|im_start|>assistant\n",
+        # "system": "<|im_start|>system\n",
+        # "end": "<|im_end|>\n",
+        "prompter": "<|im_start|>",
+        "assistant": "<|im_start|>",
+        "system": "<|im_start|>",
+        "end": "<|im_end|>",
     }
 elif settings.model_prompt_format == "chatHF":
     special_tokens = {
-        "prompter": "<|user|>",
-        "assistant": "<|assistant|>",
+        "prompter": "<|user|>",         # <|user|>Explain what the following benchmarks represent, and what values represent good results: inference-worker-1     | AGIEval        GPT4All TruthfulQA      BigBench        Average</s><|assistant|>
+        "assistant": "<|assistant|>",   # bla bla bla.</s><|user|>Can you elaborate a bit on this?</s><|assistant|>
         "system": "<|system|>",
+        "end": "",
+    }
+elif settings.model_prompt_format == "chatLlama":
+    special_tokens = {
+        "prompter": "[INST]",
+        "assistant": "",
+        "system": "<<SYS>>",
         "end": "",
     }
 else:
@@ -120,56 +131,78 @@ def truncate_prompt(
     plugin_used: bool,
 ):
     """
-    Truncate a prompt to ensure it does not exceed the maximum input length. Regardless of truncation, the system
-    prompt is always retained if it is present. If truncation removes the final prompter prefix, a new one is added.
+    Truncate a prompt to ensure it does not exceed the maximum input length. If truncation is required,
+    system prompt tokens are removed first until the prompt fits within the limit. If truncation removes
+    the final prompter prefix, a new one is added.
 
     The stream generation parameters are also updated with a maximum new tokens value which will not cause the total
     length to exceed the maximum specified in the worker's model config.
     """
     with shared_tokenizer_lock:
-        ids = tokenizer.encode(prompt)
-        # list of int IDs
-        prompter_prefix_ids = tokenizer.encode(special_tokens["prompter"])
+        # Encode the prompt into a list of token IDs
+        ids = tokenizer.encode(prompt, add_special_tokens=False)
+        # Encode the prompter prefix token IDs
+        prompter_prefix_ids = tokenizer.encode(special_tokens["prompter"], add_special_tokens=False)
 
-    system_prompt: str | None = None
-    system_tokens: list[int] | None = None
-    if prompt.startswith(special_tokens["system"]):
-        system_prompt = prompt[: prompt.index(special_tokens["prompter"])]
-        system_tokens = get_tokens_until(ids, prompter_prefix_ids)
+    original_token_count = len(ids)
+    system_tokens_removed = 0
+    user_tokens_removed = 0
 
+    # Get the maximum input length allowed by the worker configuration
     max_input_length = get_max_input_length(worker_config, plugin_used)
 
-    if len(ids) > max_input_length:
+    # If the encoded prompt exceeds the maximum input length
+    if original_token_count > max_input_length:
         logger.debug(f"Prompt too long, left-truncating to {max_input_length} tokens")
 
-        num_system_tokens = len(system_tokens) if system_tokens else 0
-        # Maximum token allowed for the conversation, ex system prompt
-        # We incorporate a buffer to allow for final inference tokenization differing from ours
-        # This is a slightly hacky workaround and it would be better to find a cleaner solution
-        max_conversation_length = max_input_length - num_system_tokens - int(0.01 * max_input_length)
-        ids = ids[-(max_conversation_length - 1) :]
+        # Calculate the buffer size
+        buffer_size = int(0.01 * max_input_length)
+        max_conversation_length = max_input_length - buffer_size
 
-        with shared_tokenizer_lock:
-            prompt = tokenizer.decode(ids)
+        # Check if the prompt starts with the system token
+        if prompt.startswith(special_tokens["system"]):
+            # Extract the system prompt part and its token IDs
+            system_prompt_end = prompt.index(special_tokens["prompter"])
+            system_tokens = tokenizer.encode(prompt[:system_prompt_end], add_special_tokens=False)
 
-            if special_tokens["prompter"] not in prompt:
-                prompt = special_tokens["prompter"] + prompt
-                ids = tokenizer.encode(special_tokens["prompter"]) + ids
+            # Remove system tokens as needed to fit within the limit
+            while len(ids) > max_conversation_length and system_tokens:
+                ids.pop(0)
+                system_tokens_removed += 1
 
-            if system_tokens:
-                prompt = system_prompt + prompt
-                ids = system_tokens + ids
+        # Calculate the number of user tokens to remove if still over limit
+        if len(ids) > max_conversation_length:
+            user_tokens_removed = len(ids) - max_conversation_length
+            ids = ids[-max_conversation_length:]
 
+    # Prepend the prompter prefix if not present
+    if not any(token == prompter_prefix_ids[0] for token in ids):
+        ids = prompter_prefix_ids + ids
+
+    # Decode the final list of token IDs back into a string prompt
+    with shared_tokenizer_lock:
+        prompt = tokenizer.decode(ids, clean_up_tokenization_spaces=True)
+
+    # Determine the maximum total tokens allowed by the model configuration
     max_total_tokens = worker_config.model_config.max_total_length
     input_length = len(ids)
-    spare = max_total_tokens - input_length - 1
+    spare = max_total_tokens - input_length - 1  # Calculate the remaining token capacity
 
+    # Adjust the max_new_tokens parameter to fit within the total token limit
     if not parameters.max_new_tokens:
         parameters.max_new_tokens = spare
     elif parameters.max_new_tokens > spare:
         logger.debug(f"Max new tokens too high, reducing to {spare}")
         parameters.max_new_tokens = spare
 
+    # Log the number of tokens removed and the token counts
+    new_token_count = len(ids)
+    logger.debug(f"Original token count: {original_token_count}")
+    logger.debug(f"New token count: {new_token_count}")
+    logger.debug(f"System tokens removed: {system_tokens_removed}")
+    logger.debug(f"User tokens removed: {user_tokens_removed}")
+
+    logger.debug(f"Truncated prompt: {prompt}")
     return prompt
 
 
